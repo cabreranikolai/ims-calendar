@@ -44,9 +44,7 @@ export default function AvailabilityCard({ employee, onSetStatus, isOwnCard }) {
             {employee.job_title && (
               <p className="text-xs text-gray-400 truncate">{employee.job_title}</p>
             )}
-            {employee.departments && (
-              <p className="text-xs text-gray-400 truncate">{employee.departments.name}</p>
-            )}
+            <p className="text-xs text-gray-400 truncate capitalize">{employee.role}</p>
           </div>
         </div>
 

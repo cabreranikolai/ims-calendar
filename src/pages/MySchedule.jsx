@@ -1,9 +1,14 @@
 import { useState, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import listPlugin from '@fullcalendar/list'
-import interactionPlugin from '@fullcalendar/interaction'
+import dayGridPlugin from '@fullcalendar/react/daygrid'
+import timeGridPlugin from '@fullcalendar/react/timegrid'
+import listPlugin from '@fullcalendar/react/list'
+import interactionPlugin from '@fullcalendar/react/interaction'
+import breezyThemePlugin from '@fullcalendar/react/themes/breezy'
+import '@fullcalendar/react/skeleton.css'
+import '@fullcalendar/react/themes/breezy/theme.css'
+import '@fullcalendar/react/themes/breezy/palettes/indigo.css'
 import { CalendarDays, Plus, Clock, Building, Mail, Shield } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useEvents } from '../hooks/useEvents'
@@ -16,7 +21,8 @@ import EventDetail from '../components/calendar/EventDetail'
 import Spinner from '../components/common/Spinner'
 
 export default function MySchedule() {
-  const { profile, user } = useAuth()
+  const { profile, user, isSupervisor } = useAuth()
+  const navigate = useNavigate()
   const { events, loading, createEvent, updateEvent, cancelEvent, deleteEvent } = useEvents()
 
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -44,6 +50,7 @@ export default function MySchedule() {
   }
 
   function handleDateClick(arg) {
+    if (!isSupervisor) return
     setEditingEvent({
       start_at: arg.dateStr.includes('T') ? arg.dateStr : `${arg.dateStr}T09:00:00`,
       end_at: arg.dateStr.includes('T') ? arg.dateStr : `${arg.dateStr}T10:00:00`,
@@ -81,11 +88,15 @@ export default function MySchedule() {
         <button
           className="btn-primary"
           onClick={() => {
+            if (!isSupervisor) {
+              navigate('/requests')
+              return
+            }
             setEditingEvent(null)
             setIsFormOpen(true)
           }}
         >
-          <Plus size={16} /> New Personal Event
+          <Plus size={16} /> {isSupervisor ? 'New Personal Event' : 'Request Schedule'}
         </button>
       </div>
 
@@ -99,7 +110,7 @@ export default function MySchedule() {
           ) : (
             <FullCalendar
               ref={calendarRef}
-              plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+              plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, breezyThemePlugin]}
               initialView="listWeek"
               headerToolbar={{
                 left: 'prev,next today',
@@ -108,9 +119,9 @@ export default function MySchedule() {
               }}
               events={fcEvents}
               eventClick={handleEventClick}
-              dateClick={handleDateClick}
+              dateClick={isSupervisor ? handleDateClick : undefined}
               editable={false}
-              selectable={true}
+              selectable={isSupervisor}
               height="auto"
               nowIndicator={true}
             />

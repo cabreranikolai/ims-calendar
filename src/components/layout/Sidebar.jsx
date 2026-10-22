@@ -6,14 +6,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 
 const NAV_ITEMS = [
-  { to: '/dashboard',    label: 'Dashboard',         Icon: LayoutDashboard },
-  { to: '/calendar',     label: 'Office Calendar',   Icon: Calendar },
+  { to: '/dashboard',    label: 'Dashboard',          Icon: LayoutDashboard },
+  { to: '/calendar',     label: 'Staff Calendar',     Icon: Calendar },
   { to: '/availability', label: 'Staff Availability', Icon: Users },
-  { to: '/my-schedule',  label: 'My Schedule',       Icon: CalendarDays },
-  { to: '/requests',     label: 'Schedule Requests', Icon: ClipboardList },
-  { to: '/reports',      label: 'Reports',           Icon: BarChart3 },
-  { to: '/directory',    label: 'Employee Directory', Icon: BookUser },
-  { to: '/settings',     label: 'Settings',          Icon: Settings, adminOnly: true },
+  { to: '/my-schedule',  label: 'My Schedule',        Icon: CalendarDays },
+  { to: '/requests',     label: 'Schedule Requests',  Icon: ClipboardList },
+  { to: '/reports',      label: 'Reports & Workload', Icon: BarChart3 },
+  { to: '/directory',    label: 'Staff Directory',    Icon: BookUser, adminOnly: true },
+  { to: '/settings',     label: 'Settings',           Icon: Settings, adminOnly: true },
 ]
 
 export default function Sidebar({ open, onClose }) {
@@ -84,4 +84,3 @@ export default function Sidebar({ open, onClose }) {
     </>
   )
 }
-

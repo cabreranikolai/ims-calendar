@@ -113,16 +113,36 @@ export function stringToColor(str) {
   return colors[Math.abs(hash) % colors.length]
 }
 
+export function userToColor(userId) {
+  let hash = 2166136261
+  for (let i = 0; i < (userId || '').length; i++) {
+    hash = Math.imul(hash ^ userId.charCodeAt(i), 16777619)
+  }
+  const hue = ((hash >>> 0) / 0x100000000) * 360
+  return `hsl(${hue.toFixed(1)} 76% 38%)`
+}
+
+export function getEventColorUserId(event) {
+  const organizerId = event.organizer_id || event.organizer?.id
+  if (event.category === 'leave') {
+    const staffParticipant = event.event_participants?.find(p => p.user_id !== organizerId)
+      || event.event_participants?.[0]
+    if (staffParticipant) return staffParticipant.user_id
+  }
+  return organizerId
+}
+
 // Convert event for FullCalendar
 export function toFCEvent(event) {
+  const colorUserId = getEventColorUserId(event)
   return {
     id: event.id,
     title: event.title,
     start: event.start_at,
     end: event.end_at,
     allDay: event.all_day,
-    backgroundColor: event.color || '#6366f1',
-    borderColor: 'transparent',
+    color: colorUserId ? userToColor(colorUserId) : event.color || '#6366f1',
+    className: 'staff-calendar-event',
     extendedProps: { ...event },
   }
 }
@@ -165,4 +185,3 @@ export function debounce(fn, ms) {
 export function pluralize(count, singular, plural) {
   return count === 1 ? `${count} ${singular}` : `${count} ${plural ?? singular + 's'}`
 }
-

@@ -26,7 +26,9 @@ export default function AppRouter() {
           <Route path="/my-schedule"  element={<MySchedule />} />
           <Route path="/requests"     element={<Requests />} />
           <Route path="/reports"      element={<Reports />} />
-          <Route path="/directory"    element={<Directory />} />
+          <Route element={<ProtectedRoute requiredRole="admin" />}>
+            <Route path="/directory" element={<Directory />} />
+          </Route>
           <Route path="/settings"     element={<Settings />} />
         </Route>
       </Route>
@@ -35,4 +37,3 @@ export default function AppRouter() {
     </Routes>
   )
 }
-

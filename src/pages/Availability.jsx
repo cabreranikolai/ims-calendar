@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Users, Filter } from 'lucide-react'
 import { useAvailability } from '../hooks/useAvailability'
-import { useDepartments } from '../hooks/useData'
 import { useAuth } from '../contexts/AuthContext'
 import AvailabilityCard from '../components/availability/AvailabilityCard'
 import SearchInput from '../components/common/SearchInput'
@@ -10,11 +9,10 @@ import { AVAILABILITY_STATUSES } from '../lib/constants'
 
 export default function Availability() {
   const { user } = useAuth()
-  const { employees, loading, error, setOverride, clearOverride } = useAvailability()
-  const { departments } = useDepartments()
+  const { employees, loading, error, setOverride } = useAvailability()
 
   const [search, setSearch] = useState('')
-  const [selectedDept, setSelectedDept] = useState('')
+  const [selectedRole, setSelectedRole] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
 
   // Status counts for top summary
@@ -39,13 +37,13 @@ export default function Availability() {
       const title = (emp.job_title || '').toLowerCase()
       const searchMatch = !search || name.includes(search.toLowerCase()) || title.includes(search.toLowerCase())
 
-      const deptMatch = !selectedDept || emp.department_id === selectedDept
+      const roleMatch = selectedRole === 'all' || emp.role === selectedRole
 
       const statusMatch = selectedStatus === 'all' || (emp.availability?.status || 'available') === selectedStatus
 
-      return searchMatch && deptMatch && statusMatch
+      return searchMatch && roleMatch && statusMatch
     })
-  }, [employees, search, selectedDept, selectedStatus])
+  }, [employees, search, selectedRole, selectedStatus])
 
   return (
     <div className="space-y-6">
@@ -107,13 +105,13 @@ export default function Availability() {
             <Filter size={16} className="text-gray-400" />
             <select
               className="select text-sm py-1.5 pl-3 pr-8"
-              value={selectedDept}
-              onChange={e => setSelectedDept(e.target.value)}
+              value={selectedRole}
+              onChange={e => setSelectedRole(e.target.value)}
             >
-              <option value="">All Departments</option>
-              {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+              <option value="all">All Roles</option>
+              <option value="admin">Administrators</option>
+              <option value="supervisor">Supervisors</option>
+              <option value="employee">Staff / Employees</option>
             </select>
           </div>
         </div>

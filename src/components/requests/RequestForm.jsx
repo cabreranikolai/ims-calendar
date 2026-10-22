@@ -25,7 +25,7 @@ export default function RequestForm({ onSubmit, onCancel, loading }) {
     if (!form.title.trim()) errs.title = 'Title is required'
     if (!form.start_at)     errs.start_at = 'Start date is required'
     if (!form.end_at)       errs.end_at   = 'End date is required'
-    if (form.start_at && form.end_at && form.end_at < form.start_at) {
+    if (form.start_at && form.end_at && form.end_at <= form.start_at) {
       errs.end_at = 'End must be after start'
     }
     return errs
@@ -123,4 +123,3 @@ export default function RequestForm({ onSubmit, onCancel, loading }) {
     </form>
   )
 }
-

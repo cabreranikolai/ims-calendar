@@ -4,7 +4,7 @@ import { FormField } from '../common/FormField'
 import {
   EVENT_CATEGORIES, VISIBILITY_LABELS, APPROVAL_STATUS,
 } from '../../lib/constants'
-import { useDepartments, useProfiles } from '../../hooks/useData'
+import { useProfiles } from '../../hooks/useData'
 import { useAuth } from '../../contexts/AuthContext'
 import Alert from '../common/Alert'
 
@@ -31,12 +31,12 @@ function toDatetimeLocal(iso) {
 
 export default function EventForm({ event, onSubmit, onCancel, loading }) {
   const { profile, isAdmin } = useAuth()
-  const { departments } = useDepartments()
   const { profiles }    = useProfiles()
 
   const [form, setForm] = useState(DEFAULT_FORM)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [participantSearch, setParticipantSearch] = useState('')
 
   // Populate form when editing
   useEffect(() => {
@@ -186,19 +186,35 @@ export default function EventForm({ event, onSubmit, onCancel, loading }) {
         />
       </FormField>
 
-      {/* Department */}
-      <FormField label="Department">
-        <select
-          className="select"
-          value={form.department_id}
-          onChange={e => set('department_id', e.target.value)}
-          disabled={!isAdmin && !!profile?.department_id}
-        >
-          <option value="">Select department…</option>
-          {departments.map(d => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
+      {/* Participants (Staff) */}
+      <FormField label="Assigned Staff / Participants">
+        {profiles.length > 5 && (
+          <input
+            type="text"
+            className="input text-xs py-1.5 px-3 mb-2"
+            placeholder="Filter staff by name..."
+            value={participantSearch}
+            onChange={e => setParticipantSearch(e.target.value)}
+          />
+        )}
+        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+          {profiles
+            .filter(p => !participantSearch || (p.full_name || p.display_name || '').toLowerCase().includes(participantSearch.toLowerCase()))
+            .map(p => (
+              <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.participants.includes(p.id)}
+                  onChange={() => toggleParticipant(p.id)}
+                  className="w-4 h-4 text-primary-600 rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-medium">{p.full_name || p.display_name}</span>
+                  {p.job_title && <span className="text-gray-400 ml-1.5 text-xs">({p.job_title})</span>}
+                </span>
+              </label>
+            ))}
+        </div>
       </FormField>
 
       {/* Location */}
@@ -207,12 +223,12 @@ export default function EventForm({ event, onSubmit, onCancel, loading }) {
           className="input"
           value={form.location}
           onChange={e => set('location', e.target.value)}
-          placeholder="Conference Room A, Building 2…"
+          placeholder="e.g. Office Room 3, Client Site..."
         />
       </FormField>
 
       {/* Meeting link */}
-      <FormField label="Meeting Link" error={errors.meeting_link}>
+      <FormField label="Meeting Link (Optional)" error={errors.meeting_link}>
         <input
           className="input"
           type="url"
@@ -220,15 +236,6 @@ export default function EventForm({ event, onSubmit, onCancel, loading }) {
           onChange={e => set('meeting_link', e.target.value)}
           placeholder="https://meet.google.com/…"
         />
-      </FormField>
-
-      {/* Visibility */}
-      <FormField label="Visibility">
-        <select className="select" value={form.visibility} onChange={e => set('visibility', e.target.value)}>
-          {Object.entries(VISIBILITY_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
       </FormField>
 
       {/* Requires approval */}
@@ -244,26 +251,6 @@ export default function EventForm({ event, onSubmit, onCancel, loading }) {
           Requires supervisor approval
         </label>
       </div>
-
-      {/* Participants */}
-      <FormField label="Participants">
-        <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-          {profiles.map(p => (
-            <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.participants.includes(p.id)}
-                onChange={() => toggleParticipant(p.id)}
-                className="w-4 h-4 text-primary-600 rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">
-                {p.full_name || p.display_name}
-                {p.departments && <span className="text-gray-400 ml-1">· {p.departments.name}</span>}
-              </span>
-            </label>
-          ))}
-        </div>
-      </FormField>
 
       {/* Notes */}
       <FormField label="Notes">

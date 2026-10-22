@@ -3,22 +3,22 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell
 } from 'recharts'
 import {
-  BarChart3, Download, Calendar, Users, Briefcase, FileSpreadsheet, Lock
+  BarChart3, Download, Users, Briefcase, FileSpreadsheet, Lock
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useEvents } from '../hooks/useEvents'
-import { useDepartments } from '../hooks/useData'
+import { useProfiles } from '../hooks/useData'
 import { EVENT_CATEGORIES, EVENT_CATEGORY_MAP } from '../lib/constants'
 import { downloadCSV, formatDate, formatDateRange } from '../lib/utils'
 import Spinner from '../components/common/Spinner'
 import Badge from '../components/common/Badge'
 
 export default function Reports() {
-  const { profile, isAdmin, isSupervisor } = useAuth()
+  const { isAdmin, isSupervisor } = useAuth()
   const { events, loading: eventsLoading } = useEvents()
-  const { departments, loading: deptsLoading } = useDepartments()
+  const { profiles, loading: profilesLoading } = useProfiles()
 
-  const loading = eventsLoading || deptsLoading
+  const loading = eventsLoading || profilesLoading
 
   // 1. Category Chart Data
   const categoryChartData = useMemo(() => {
@@ -34,19 +34,29 @@ export default function Reports() {
     return Object.values(counts)
   }, [events])
 
-  // 2. Department Activity Data
-  const departmentActivityData = useMemo(() => {
-    return departments.map(d => {
-      const deptEvents = events.filter(e => e.department_id === d.id)
+  // 2. Staff Schedule & Activity Breakdown
+  const staffActivityData = useMemo(() => {
+    return profiles.map(p => {
+      const staffEvents = events.filter(e =>
+        e.organizer_id === p.id || e.event_participants?.some(part => part.user_id === p.id)
+      )
+      const fieldworkCount = staffEvents.filter(e => e.category === 'fieldwork').length
+      const meetingCount   = staffEvents.filter(e => e.category === 'meeting').length
+      const leaveCount     = staffEvents.filter(e => e.category === 'leave').length
+      const obCount        = staffEvents.filter(e => e.category === 'official_business').length
+
       return {
-        id: d.id,
-        name: d.name,
-        color: d.color,
-        eventCount: deptEvents.length,
-        recentEvent: deptEvents[0]?.title || 'None',
+        id: p.id,
+        name: p.full_name || p.display_name,
+        jobTitle: p.job_title || 'Staff',
+        totalEvents: staffEvents.length,
+        meetingCount,
+        fieldworkCount,
+        obCount,
+        leaveCount,
       }
-    })
-  }, [departments, events])
+    }).sort((a, b) => b.totalEvents - a.totalEvents)
+  }, [profiles, events])
 
   // 3. Upcoming Official Activities (Fieldwork, Official Business, Training)
   const upcomingOfficialActivities = useMemo(() => {
@@ -70,23 +80,23 @@ export default function Reports() {
       Category: EVENT_CATEGORY_MAP[e.category]?.label || e.category,
       Start: formatDate(e.start_at, 'yyyy-MM-dd HH:mm'),
       End: formatDate(e.end_at, 'yyyy-MM-dd HH:mm'),
-      Department: e.department?.name || 'N/A',
       Organizer: e.organizer?.full_name || e.organizer?.display_name || 'N/A',
+      Participants: e.event_participants?.map(p => p.profile?.full_name || p.profile?.display_name).filter(Boolean).join(', ') || 'None',
       Location: e.location || 'N/A',
       Status: e.status,
     }))
-    downloadCSV(data, `events_report_${new Date().toISOString().slice(0, 10)}.csv`)
+    downloadCSV(data, `staff_schedule_report_${new Date().toISOString().slice(0, 10)}.csv`)
   }
 
   function handleExportLeaveSummary() {
     const data = leaveSummary.map(e => ({
-      Employee: e.organizer?.full_name || e.organizer?.display_name || 'N/A',
-      Department: e.department?.name || 'N/A',
+      StaffMember: e.organizer?.full_name || e.organizer?.display_name || 'N/A',
       Start: formatDate(e.start_at, 'yyyy-MM-dd'),
       End: formatDate(e.end_at, 'yyyy-MM-dd'),
+      Duration: e.all_day ? 'All-day' : 'Partial',
       Status: e.approval_status || e.status,
     }))
-    downloadCSV(data, `leave_summary_${new Date().toISOString().slice(0, 10)}.csv`)
+    downloadCSV(data, `staff_leave_summary_${new Date().toISOString().slice(0, 10)}.csv`)
   }
 
   return (
@@ -96,16 +106,16 @@ export default function Reports() {
         <div>
           <h1 className="page-title flex items-center gap-2">
             <BarChart3 className="text-primary-600" size={28} />
-            Reports & Analytics
+            Staff Schedule Reports & Analytics
           </h1>
-          <p className="page-subtitle">Schedule summaries, department metrics, and CSV exports</p>
+          <p className="page-subtitle">Track staff workload, scheduled activities, fieldwork, and leave metrics</p>
         </div>
         <button
           className="btn-secondary"
           onClick={handleExportAllEvents}
           disabled={loading || events.length === 0}
         >
-          <Download size={16} /> Export All Events (CSV)
+          <Download size={16} /> Export Schedule (CSV)
         </button>
       </div>
 
@@ -118,27 +128,28 @@ export default function Reports() {
           {/* Section 1: Events by Category Chart */}
           <div className="card p-5">
             <h3 className="font-semibold text-gray-900 text-base mb-4 flex items-center gap-2">
-              <Calendar size={18} className="text-primary-600" />
-              Events by Category
+              <BarChart3 size={18} className="text-primary-600" />
+              Activities by Category
             </h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     interval={0}
-                    angle={-20}
+                    angle={-15}
                     textAnchor="end"
                   />
-                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    formatter={(value) => [`${value} activities`, 'Total']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {categoryChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -147,33 +158,36 @@ export default function Reports() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Section 2: Department Activity */}
+            {/* Section 2: Staff Schedule & Activity Breakdown */}
             <div className="card p-5">
               <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
                 <Users size={18} className="text-primary-600" />
-                Department Activity
+                Staff Schedule Breakdown ({staffActivityData.length} Staff)
               </h3>
-              <div className="table-container">
+              <div className="table-container max-h-80 overflow-y-auto">
                 <table>
                   <thead>
                     <tr>
-                      <th>Department</th>
-                      <th>Total Events</th>
-                      <th>Recent Activity</th>
+                      <th>Staff Member</th>
+                      <th>Total</th>
+                      <th>Meetings</th>
+                      <th>Fieldwork</th>
+                      <th>Leave</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {departmentActivityData.map(d => (
-                      <tr key={d.id}>
-                        <td className="font-medium text-gray-900">
-                          <span
-                            className="inline-block w-2.5 h-2.5 rounded-full mr-2"
-                            style={{ backgroundColor: d.color || '#6366f1' }}
-                          />
-                          {d.name}
+                    {staffActivityData.map(s => (
+                      <tr key={s.id}>
+                        <td>
+                          <p className="font-medium text-gray-900 leading-none">{s.name}</p>
+                          <p className="text-gray-400 text-xs mt-0.5">{s.jobTitle}</p>
                         </td>
-                        <td>{d.eventCount}</td>
-                        <td className="text-gray-500 max-w-xs truncate">{d.recentEvent}</td>
+                        <td>
+                          <span className="font-bold text-gray-900">{s.totalEvents}</span>
+                        </td>
+                        <td>{s.meetingCount}</td>
+                        <td>{s.fieldworkCount + s.obCount}</td>
+                        <td>{s.leaveCount}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -185,12 +199,12 @@ export default function Reports() {
             <div className="card p-5">
               <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
                 <Briefcase size={18} className="text-primary-600" />
-                Upcoming Official Travel & Fieldwork
+                Upcoming Travel, Fieldwork & Training
               </h3>
               {upcomingOfficialActivities.length === 0 ? (
                 <p className="text-sm text-gray-400 py-6 text-center">No upcoming official travel or fieldwork scheduled.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   {upcomingOfficialActivities.map(act => (
                     <div key={act.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between">
                       <div>
@@ -203,6 +217,11 @@ export default function Reports() {
                         <p className="text-xs text-gray-400 mt-1">
                           {formatDateRange(act.start_at, act.end_at)} {act.location ? `· ${act.location}` : ''}
                         </p>
+                        {act.organizer && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Staff: {act.organizer.full_name || act.organizer.display_name}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -216,7 +235,7 @@ export default function Reports() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2">
                 <FileSpreadsheet size={18} className="text-primary-600" />
-                Approved Leave Records
+                Approved Staff Leave Records
               </h3>
               {isSupervisor && leaveSummary.length > 0 && (
                 <button
@@ -240,9 +259,8 @@ export default function Reports() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Employee</th>
-                      <th>Department</th>
-                      <th>Dates</th>
+                      <th>Staff Member</th>
+                      <th>Leave Dates</th>
                       <th>Duration</th>
                       <th>Status</th>
                     </tr>
@@ -253,7 +271,6 @@ export default function Reports() {
                         <td className="font-medium text-gray-900">
                           {leave.organizer?.full_name || leave.organizer?.display_name || 'Staff'}
                         </td>
-                        <td>{leave.department?.name || '—'}</td>
                         <td>{formatDateRange(leave.start_at, leave.end_at, leave.all_day)}</td>
                         <td>{leave.all_day ? 'All-day' : 'Partial'}</td>
                         <td>
